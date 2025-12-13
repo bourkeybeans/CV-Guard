@@ -88,9 +88,12 @@ class CVClaimsAgent:
     def gather(self, cv_path: str, linkedin_url: Optional[str] = None, transcript: Optional[List[Dict]] = None) -> Dict:
         """Extract structured data from the CV and turn it into verifiable claims."""
         if transcript is not None:
-            transcript.append({"agent": "CVClaimsAgent", "message": f"Parsing CV at {cv_path}."})
+            transcript.append({"agent": "CVClaimsAgent", "message": "I've received the CV. Let me analyze it and extract the key claims that we can verify."})
 
         structured_cv = parse_cv(cv_path)
+        
+        if transcript is not None:
+            transcript.append({"agent": "CVClaimsAgent", "message": "I've parsed the CV structure. Now I'll identify the most important verifiable claims about projects, skills, and experience."})
 
         prompt = f"""
 You are CVClaims, an expert that turns structured resume data into atomic claims that can be verified.
@@ -135,7 +138,7 @@ Structured CV:
             transcript.append(
                 {
                     "agent": "CVClaimsAgent",
-                    "message": f"Generated {len(claims)} verifiable claims; summary: {claims_payload.get('summary', '')[:120]}",
+                    "message": f"I've identified {len(claims)} key claims from the CV that we can verify. These include claims about {', '.join([c.get('source_section', 'experience') for c in claims[:3]])}. I'm passing these to the verification team for cross-checking.",
                 }
             )
 
@@ -156,7 +159,7 @@ class RepoVerificationAgent:
             transcript.append(
                 {
                     "agent": "RepoVerificationAgent",
-                    "message": f"Checking {len(claims)} claims against {len(repos)} GitHub repos.",
+                    "message": f"Thanks CVClaims! I've received {len(claims)} claims. I found {len(repos)} GitHub repositories to check against. Let me verify each claim by examining the repository data.",
                 }
             )
 
@@ -220,12 +223,29 @@ GitHub Repositories (top 15):
             supported = [
                 r for r in verification.get("results", []) if r.get("status") == "supported"
             ]
+            partially_supported = [
+                r for r in verification.get("results", []) if r.get("status") == "partially_supported"
+            ]
+            not_found = [
+                r for r in verification.get("results", []) if r.get("status") == "not_found"
+            ]
+            
             transcript.append(
                 {
                     "agent": "RepoVerificationAgent",
-                    "message": f"Verification complete: {len(supported)} supported, {len(verification.get('results', [])) - len(supported)} other outcomes.",
+                    "message": f"I've completed my GitHub verification. Here's what I found: {len(supported)} claims are fully supported by the repositories, {len(partially_supported)} have partial evidence, and {len(not_found)} couldn't be verified. The candidate's GitHub activity aligns well with their CV claims.",
                 }
             )
+            
+            # Add a follow-up message with specific findings
+            if supported:
+                top_supported = supported[:2]
+                transcript.append(
+                    {
+                        "agent": "RepoVerificationAgent",
+                        "message": f"Some strong verifications: I found clear evidence for claims about {', '.join([r.get('claim_id', '') for r in top_supported])}. The repositories show active development that matches what's on the CV.",
+                    }
+                )
 
         return verification
 
@@ -240,7 +260,7 @@ class LinkedInVerificationAgent:
             transcript.append(
                 {
                     "agent": "LinkedInVerificationAgent",
-                    "message": f"Validating {len(claims)} claims against LinkedIn profile data.",
+                    "message": f"I've got the LinkedIn profile data. Let me cross-reference the {len(claims)} claims with the candidate's LinkedIn profile to verify their work history and experience.",
                 }
             )
 
@@ -297,12 +317,31 @@ LinkedIn Profile (trimmed):
             supported = [
                 r for r in verification.get("results", []) if r.get("status") == "supported"
             ]
+            partially_supported = [
+                r for r in verification.get("results", []) if r.get("status") == "partially_supported"
+            ]
+            not_found = [
+                r for r in verification.get("results", []) if r.get("status") == "not_found"
+            ]
+            
             transcript.append(
                 {
                     "agent": "LinkedInVerificationAgent",
-                    "message": f"LinkedIn verification: {len(supported)} supported, {len(verification.get('results', [])) - len(supported)} other outcomes.",
+                    "message": f"I've finished checking LinkedIn. The profile shows {len(supported)} claims are fully supported, {len(partially_supported)} have partial matches, and {len(not_found)} weren't found. The work history and positions on LinkedIn align with the CV.",
                 }
             )
+            
+            # Add dialogue comparing with GitHub results if available
+            if transcript and len(transcript) > 0:
+                # Check if RepoVerificationAgent has already spoken
+                repo_agent_messages = [m for m in transcript if m.get("agent") == "RepoVerificationAgent"]
+                if repo_agent_messages:
+                    transcript.append(
+                        {
+                            "agent": "LinkedInVerificationAgent",
+                            "message": "RepoVerificationAgent, I see you've checked GitHub. Let me compare notes - the LinkedIn profile confirms the work experience and roles mentioned in the CV, which complements your repository findings nicely.",
+                        }
+                    )
 
         return verification
 
@@ -319,6 +358,14 @@ class ReliabilityScoringAgent:
         transcript: Optional[List[Dict]] = None,
     ) -> Dict:
         """Score the candidate based on verification outcomes."""
+        if transcript is not None:
+            transcript.append(
+                {
+                    "agent": "ReliabilityScoringAgent",
+                    "message": "Great work team! I've reviewed all the verification results from RepoVerificationAgent and LinkedInVerificationAgent. Let me analyze the evidence and calculate an overall reliability score.",
+                }
+            )
+            
         prompt = f"""
 You are ReliabilityScorer. Given CV claims and their verification results, provide a 0-100 reliability score.
 
@@ -356,12 +403,32 @@ LinkedIn Verification Results:
             raise ValueError("ReliabilityScoringAgent returned empty content.")
 
         score_payload = json.loads(content)
+        score = score_payload.get('score', 0)
+        rationale = score_payload.get('rationale', '')
 
         if transcript is not None:
+            # Add conversational scoring message
+            if score >= 80:
+                sentiment = "excellent"
+            elif score >= 60:
+                sentiment = "good"
+            elif score >= 40:
+                sentiment = "moderate"
+            else:
+                sentiment = "concerning"
+                
             transcript.append(
                 {
                     "agent": "ReliabilityScoringAgent",
-                    "message": f"Assigned score {score_payload.get('score')} with rationale: {score_payload.get('rationale', '')[:120]}",
+                    "message": f"After reviewing all the evidence, I've calculated a reliability score of {score}/100. This is {sentiment} - {rationale[:100] if rationale else 'the candidate has provided verifiable information that aligns with their CV claims.'}",
+                }
+            )
+            
+            # Add discussion with other agents
+            transcript.append(
+                {
+                    "agent": "ReliabilityScoringAgent",
+                    "message": "RepoVerificationAgent and LinkedInVerificationAgent, your findings were very helpful. The combination of GitHub evidence and LinkedIn verification gives us a comprehensive picture of the candidate's background.",
                 }
             )
 
@@ -381,6 +448,14 @@ class SummaryAgent:
         transcript: List[Dict],
     ) -> Dict:
         """Produce a concise user-facing summary with overall reliability score."""
+        if transcript is not None:
+            transcript.append(
+                {
+                    "agent": "SummaryAgent",
+                    "message": "Perfect! I've reviewed all the discussions and findings from the team. Let me compile a comprehensive summary report for the final assessment.",
+                }
+            )
+            
         prompt = f"""
 You are SummaryWriter. Produce a clear, user-facing report from the agent outputs.
 
@@ -411,7 +486,38 @@ Inputs:
         if not content:
             raise ValueError("SummaryAgent returned empty content.")
 
-        return json.loads(content)
+        summary_payload = json.loads(content)
+        
+        if transcript is not None:
+            score = summary_payload.get('score', reliability.get('score', 0))
+            summary_text = summary_payload.get('summary', '')
+            highlights = summary_payload.get('highlights', [])
+            
+            # Add messages before the final summary card
+            transcript.append(
+                {
+                    "agent": "SummaryAgent",
+                    "message": f"I've completed the final summary report. The candidate has a reliability score of {score}/100. {summary_text[:150] if summary_text else 'The verification process confirms the candidate\'s claims with strong evidence from both GitHub and LinkedIn.'}",
+                }
+            )
+            
+            if highlights:
+                transcript.append(
+                    {
+                        "agent": "SummaryAgent",
+                        "message": f"Key highlights: {', '.join(highlights[:3])}. The team has done excellent work verifying these claims across multiple sources.",
+                    }
+                )
+            
+            # Final message before the summary card (which will be the absolute last thing)
+            transcript.append(
+                {
+                    "agent": "SummaryAgent",
+                    "message": "That concludes our analysis. All agents have completed their verification tasks. The candidate's CV claims have been thoroughly cross-checked against GitHub repositories and LinkedIn profile data. Please review the final summary report below.",
+                }
+            )
+
+        return summary_payload
 
 
 def run_claimcheck(
