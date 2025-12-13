@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ClaimCheck</title>
+  <title>CV-Guard</title>
 
   <style>
     body {
@@ -82,9 +82,9 @@
 <body>
 
   <div class="container">
-    <h1>ClaimCheck</h1>
+    <h1>CV Guard</h1>
     <p class="subtitle">
-      Verify the reliability of CV claims by cross-referencing LinkedIn and GitHub.
+      Verify the reliability of CV claims by cross-referencing LinkedIn and GitHub with a team of multi-agents.
     </p>
 
     <form id="claimcheck-form" method="POST" enctype="multipart/form-data">
@@ -98,15 +98,13 @@
       <label>GitHub Username</label>
       <input type="text" name="github" placeholder="octocat" required>
 
-      <label>GitHub Token (optional)</label>
-      <input type="text" name="github_token" placeholder="ghp_xxx for higher rate limits">
-
       <label style="display:flex; align-items:center; gap:8px; font-weight:500;">
         <input type="checkbox" name="verbose" value="1" style="width:auto; margin:0;">
         Verbose agent transcript
       </label>
+      <br>
 
-      <button type="submit">Run ClaimCheck</button>
+      <button type="submit">Run CV-Guard</button>
 
     </form>
 
