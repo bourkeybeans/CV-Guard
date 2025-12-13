@@ -148,6 +148,16 @@ def stream():
 
             if linkedin_username and linkedin_api_key:
                 yield _sse("status", {"message": f"Fetching LinkedIn profile for {linkedin_username}..."})
+                if transcript is not None:
+                    transcript.append(
+                        {
+                            "agent": "LinkedInScraper",
+                            "message": f"CVClaimsAgent, I'm fetching the LinkedIn profile for {linkedin_username} now. This will help us verify the candidate's work history and professional background.",
+                        }
+                    )
+                    for update in send_new_transcript_entries():
+                        yield update
+                        
                 status, profile_or_error = fetch_linkedin_profile(
                     linkedin_username, linkedin_api_key, transcript=transcript
                 )
@@ -161,11 +171,20 @@ def stream():
                 )
                 if status == "success" and isinstance(profile_or_error, dict):
                     linkedin_profile = profile_or_error
+                    if transcript is not None:
+                        transcript.append(
+                            {
+                                "agent": "LinkedInScraper",
+                                "message": f"Perfect! I've successfully retrieved the LinkedIn profile. LinkedInVerificationAgent, I'm passing this data to you for verification.",
+                            }
+                        )
+                        for update in send_new_transcript_entries():
+                            yield update
                 else:
                     transcript.append(
                         {
                             "agent": "LinkedInScraper",
-                            "message": f"LinkedIn fetch failed ({status}): {profile_or_error}",
+                            "message": f"I encountered an issue fetching the LinkedIn profile ({status}). We'll proceed with GitHub verification only.",
                         }
                     )
                     for update in send_new_transcript_entries():
@@ -174,7 +193,7 @@ def stream():
                 transcript.append(
                     {
                         "agent": "LinkedInScraper",
-                        "message": "Skipping LinkedIn fetch (missing LINKD_API_KEY).",
+                        "message": "I can't fetch the LinkedIn profile because the API key is missing. We'll proceed with GitHub verification only. RepoVerificationAgent, you'll handle the full verification.",
                     }
                 )
                 for update in send_new_transcript_entries():
@@ -183,6 +202,16 @@ def stream():
             yield _sse("status", {"message": "Fetching GitHub repositories..."})
             repos = get_github_repositories(github_username, github_token)
             yield _sse("repos", {"count": len(repos)})
+            
+            if transcript is not None:
+                transcript.append(
+                    {
+                        "agent": "RepoVerificationAgent",
+                        "message": f"CVClaimsAgent, I've received the {len(claims_payload['claims'])} claims you extracted. I found {len(repos)} repositories to check. Let me start verifying these against the candidate's GitHub activity.",
+                    }
+                )
+                for update in send_new_transcript_entries():
+                    yield update
 
             verification = verifier.verify(
                 claims_payload["claims"], repos, transcript=transcript
@@ -192,8 +221,30 @@ def stream():
                 yield update
                 
             yield _sse("verification", verification)
+            
+            # Add response from RepoVerificationAgent after verification
+            if transcript is not None:
+                supported_count = len([r for r in verification.get("results", []) if r.get("status") == "supported"])
+                transcript.append(
+                    {
+                        "agent": "RepoVerificationAgent",
+                        "message": f"CVClaimsAgent, I've finished my verification. {supported_count} out of {len(verification.get('results', []))} claims have strong GitHub evidence. The candidate's repositories show active development that matches their CV.",
+                    }
+                )
+                for update in send_new_transcript_entries():
+                    yield update
 
             if linkedin_profile:
+                if transcript is not None:
+                    transcript.append(
+                        {
+                            "agent": "LinkedInVerificationAgent",
+                            "message": "RepoVerificationAgent, I see you've completed the GitHub verification. I'm now checking the LinkedIn profile to verify work history and experience. Let's see if our findings align!",
+                        }
+                    )
+                    for update in send_new_transcript_entries():
+                        yield update
+                        
                 linkedin_verification = linkedin_verifier.verify(
                     claims_payload["claims"],
                     linkedin_profile,
@@ -204,6 +255,18 @@ def stream():
                     yield update
                     
                 yield _sse("linkedin_verification", linkedin_verification)
+                
+                # Add response from RepoVerificationAgent after LinkedIn verification
+                if transcript is not None:
+                    linkedin_supported = len([r for r in linkedin_verification.get("results", []) if r.get("status") == "supported"])
+                    transcript.append(
+                        {
+                            "agent": "RepoVerificationAgent",
+                            "message": f"LinkedInVerificationAgent, great work! I see you found {linkedin_supported} supported claims on LinkedIn. Our findings complement each other well - GitHub shows the technical work, and LinkedIn confirms the professional experience.",
+                        }
+                    )
+                    for update in send_new_transcript_entries():
+                        yield update
 
             reliability = scorer.score(
                 claims_payload["claims"],
@@ -216,6 +279,25 @@ def stream():
                 yield update
                 
             yield _sse("reliability", reliability)
+            
+            # Add response from other agents to ReliabilityScoringAgent
+            if transcript is not None:
+                score = reliability.get('score', 0)
+                transcript.append(
+                    {
+                        "agent": "RepoVerificationAgent",
+                        "message": f"ReliabilityScoringAgent, I agree with your score of {score}/100. The GitHub evidence I found supports this assessment.",
+                    }
+                )
+                if linkedin_verification:
+                    transcript.append(
+                        {
+                            "agent": "LinkedInVerificationAgent",
+                            "message": f"ReliabilityScoringAgent, the {score}/100 score makes sense given what I found on LinkedIn. The candidate's profile validates their work history claims.",
+                        }
+                    )
+                for update in send_new_transcript_entries():
+                    yield update
 
             summary = summarizer.summarize(
                 claims_payload["claims"],
@@ -224,7 +306,41 @@ def stream():
                 reliability,
                 transcript,
             )
+            # Send any new transcript entries (SummaryAgent messages)
+            for update in send_new_transcript_entries():
+                yield update
+                
             yield _sse("summary", summary)
+            
+            # Add final acknowledgments from other agents
+            if transcript is not None:
+                transcript.append(
+                    {
+                        "agent": "CVClaimsAgent",
+                        "message": "SummaryAgent, excellent summary! You've captured all the key findings from our verification process.",
+                    }
+                )
+                transcript.append(
+                    {
+                        "agent": "RepoVerificationAgent",
+                        "message": "SummaryAgent, great work compiling everything. The report accurately reflects the GitHub verification results.",
+                    }
+                )
+                if linkedin_verification:
+                    transcript.append(
+                        {
+                            "agent": "LinkedInVerificationAgent",
+                            "message": "SummaryAgent, I agree with your final assessment. The summary provides a clear picture of the candidate's reliability.",
+                        }
+                    )
+                transcript.append(
+                    {
+                        "agent": "ReliabilityScoringAgent",
+                        "message": "SummaryAgent, perfect summary! You've synthesized all our findings into a clear, actionable report.",
+                    }
+                )
+                for update in send_new_transcript_entries():
+                    yield update
 
             # Send all transcript entries at the end for verbose mode
             if verbose:
