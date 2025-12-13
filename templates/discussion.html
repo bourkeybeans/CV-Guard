@@ -177,7 +177,26 @@
 
     .message.summary .message-bubble {
       background: #dbeafe;
-      border-left: 3px solid #3b82f6;
+      border-left: 4px solid #3b82f6;
+      box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
+    }
+    
+    .message.summary {
+      animation: highlightSummary 0.5s ease-in;
+    }
+    
+    @keyframes highlightSummary {
+      0% {
+        transform: scale(0.98);
+        opacity: 0.8;
+      }
+      50% {
+        transform: scale(1.02);
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
     }
 
     .agent-CVClaimsAgent .message-avatar { background: #8b5cf6; }
@@ -191,17 +210,20 @@
 
     .summary-card {
       margin-top: 12px;
-      padding: 16px;
-      background: #ecfeff;
-      border: 1px solid #bae6fd;
-      border-radius: 8px;
-      font-size: 13px;
+      padding: 20px;
+      background: linear-gradient(135deg, #ecfeff 0%, #dbeafe 100%);
+      border: 2px solid #3b82f6;
+      border-radius: 12px;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
     }
 
     .summary-card strong {
       display: block;
-      margin-bottom: 8px;
-      font-size: 14px;
+      margin-bottom: 12px;
+      font-size: 16px;
+      color: #1e40af;
+      font-weight: 700;
     }
 
     .summary-card ul {
@@ -333,6 +355,157 @@
       overflow-x: auto;
       white-space: pre;
     }
+
+    /* Summary button below chat */
+    .summary-button-container {
+      padding: 20px 24px;
+      background: white;
+      border-top: 1px solid #e5e7eb;
+      display: none;
+      justify-content: center;
+    }
+
+    .summary-button-container.visible {
+      display: flex;
+    }
+
+    .view-summary-btn {
+      padding: 14px 28px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .view-summary-btn:hover {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      box-shadow: 0 6px 12px rgba(59, 130, 246, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .view-summary-btn:active {
+      transform: translateY(0);
+    }
+
+    /* Summary modal */
+    .summary-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .summary-modal.active {
+      display: flex;
+    }
+
+    .summary-modal-content {
+      background: white;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 900px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 25px rgba(0,0,0,0.15);
+    }
+
+    .summary-modal-header {
+      padding: 24px;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+      border-radius: 12px 12px 0 0;
+    }
+
+    .summary-modal-header h2 {
+      margin: 0;
+      font-size: 24px;
+      color: #1e40af;
+      font-weight: 700;
+    }
+
+    .summary-modal-close {
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: #6b7280;
+      padding: 0;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+
+    .summary-modal-close:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    .summary-modal-body {
+      padding: 32px;
+      overflow: auto;
+      flex: 1;
+    }
+
+    .summary-content {
+      font-size: 15px;
+      line-height: 1.7;
+      color: #374151;
+    }
+
+    .summary-content .score-badge {
+      display: inline-block;
+      padding: 8px 16px;
+      background: #3b82f6;
+      color: white;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 18px;
+      margin-bottom: 20px;
+    }
+
+    .summary-content .summary-text {
+      margin-bottom: 24px;
+      font-size: 16px;
+    }
+
+    .summary-content .highlights {
+      margin-top: 24px;
+    }
+
+    .summary-content .highlights ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .summary-content .highlights li {
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      background: #f0f9ff;
+      border-left: 4px solid #3b82f6;
+      border-radius: 6px;
+    }
   </style>
 </head>
 
@@ -367,6 +540,13 @@
         </div>
       </div>
     </div>
+
+    <!-- Summary Button Container -->
+    <div class="summary-button-container" id="summary-button-container">
+      <button class="view-summary-btn" id="view-summary-btn">
+        📊 View Final Summary Report
+      </button>
+    </div>
   </div>
 
   <!-- JSON Modal -->
@@ -382,6 +562,19 @@
     </div>
   </div>
 
+  <!-- Summary Modal -->
+  <div class="summary-modal" id="summary-modal">
+    <div class="summary-modal-content">
+      <div class="summary-modal-header">
+        <h2>Final Summary Report</h2>
+        <button class="summary-modal-close" id="summary-modal-close">&times;</button>
+      </div>
+      <div class="summary-modal-body">
+        <div class="summary-content" id="summary-content"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const statusText = document.getElementById("status-text");
     const chatMessages = document.getElementById("chat-messages");
@@ -389,7 +582,14 @@
     const jsonModal = document.getElementById("json-modal");
     const jsonModalClose = document.getElementById("json-modal-close");
     const jsonContent = document.getElementById("json-content");
+    const summaryButtonContainer = document.getElementById("summary-button-container");
+    const viewSummaryBtn = document.getElementById("view-summary-btn");
+    const summaryModal = document.getElementById("summary-modal");
+    const summaryModalClose = document.getElementById("summary-modal-close");
+    const summaryContent = document.getElementById("summary-content");
     let resultData = null;
+    let summaryData = null;
+    let agentsStopped = false;
 
     // Get session ID from URL or generate one
     const urlParams = new URLSearchParams(window.location.search);
@@ -545,6 +745,12 @@
           statusText.innerHTML = '<span class="status-indicator complete"></span>Discussion Complete';
           stopLoading();
         }
+        
+        if (data.summary) {
+          summaryData = data.summary;
+          summaryButtonContainer.classList.add("visible");
+          agentsStopped = true;
+        }
       } catch (e) {
         console.error('Error loading saved discussion:', e);
       }
@@ -593,6 +799,12 @@
               }
             }
             if (!dataLine) continue;
+            
+            // Stop processing if agents have been stopped (except for "done" and "error" events)
+            if (agentsStopped && event !== "done" && event !== "error") {
+              continue;
+            }
+            
             let payload = {};
             try { payload = JSON.parse(dataLine); } catch (err) { payload = { raw: dataLine }; }
 
@@ -639,47 +851,31 @@
                 lastAgent = "ReliabilityScoringAgent";
                 break;
               case "summary":
-                const summaryHtml = `
-                  <div class="summary-card">
-                    <strong>Final Report (Score: ${payload.score ?? "N/A"}/100)</strong>
-                    <div style="margin-top: 8px;">${payload.summary || ""}</div>
-                    ${payload.highlights && payload.highlights.length > 0 ? `
-                      <ul>
-                        ${payload.highlights.map(h => `<li>${h}</li>`).join("")}
-                      </ul>
-                    ` : ""}
-                  </div>
-                `;
-                const summaryDiv = document.createElement("div");
-                summaryDiv.className = "message summary agent-SummaryAgent";
-                const summaryAvatar = document.createElement("div");
-                summaryAvatar.className = "message-avatar";
-                summaryAvatar.textContent = getAgentInitials("SummaryAgent");
-                const summaryContent = document.createElement("div");
-                summaryContent.className = "message-content";
-                const summaryHeader = document.createElement("div");
-                summaryHeader.className = "message-header";
-                const summaryAgentName = document.createElement("span");
-                summaryAgentName.className = "message-agent";
-                summaryAgentName.textContent = getAgentDisplayName("SummaryAgent");
-                const summaryTime = document.createElement("span");
-                summaryTime.className = "message-time";
-                summaryTime.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                summaryHeader.appendChild(summaryAgentName);
-                summaryHeader.appendChild(summaryTime);
-                const summaryBubble = document.createElement("div");
-                summaryBubble.className = "message-bubble";
-                summaryBubble.innerHTML = summaryHtml;
-                summaryContent.appendChild(summaryHeader);
-                summaryContent.appendChild(summaryBubble);
-                summaryDiv.appendChild(summaryAvatar);
-                summaryDiv.appendChild(summaryContent);
-                chatMessages.appendChild(summaryDiv);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-                messages.push({ type: 'summary', html: summaryHtml, time: summaryTime.textContent });
+                // Store summary data instead of displaying in chat
+                summaryData = payload;
+                
+                // Show the summary button below the discussion
+                summaryButtonContainer.classList.add("visible");
+                
+                // STOP ALL AGENTS - no more messages should appear
+                agentsStopped = true;
+                
+                // Add a final message from SummaryAgent
+                addMessage("SummaryAgent", "I've completed the final summary report. Click the button below to view the comprehensive analysis and reliability score.");
+                messages.push({ 
+                  type: 'message', 
+                  agent: "SummaryAgent", 
+                  message: "I've completed the final summary report. Click the button below to view the comprehensive analysis and reliability score." 
+                });
                 lastAgent = "SummaryAgent";
+                
+                // Stop any typing indicators - this is the final message
+                removeTypingIndicator();
                 break;
               case "transcript":
+                // Don't process transcript entries if agents have been stopped
+                if (agentsStopped) break;
+                
                 (payload || []).forEach((entry) => {
                   if (entry.agent && entry.message) {
                     addMessage(entry.agent, entry.message);
@@ -691,10 +887,20 @@
               case "done":
                 resultData = payload;
                 viewJsonBtn.style.display = 'block';
-                statusText.textContent = 'Discussion Complete';
+                statusText.innerHTML = '<span class="status-indicator complete"></span>Discussion Complete';
                 stopLoading();
-                addMessage(null, "All agents have completed their analysis. Review the summary above.", true);
-                messages.push({ type: 'message', agent: null, message: "All agents have completed their analysis. Review the summary above.", isSystem: true });
+                
+                // No auto-scroll - let the summary card appear naturally as the last message
+                // Just add a subtle highlight animation if summary card exists
+                setTimeout(() => {
+                  const summaryCard = chatMessages.querySelector('.message.summary');
+                  if (summaryCard) {
+                    // Add highlight animation but don't scroll
+                    summaryCard.style.animation = 'highlightSummary 1s ease-in-out';
+                  }
+                }, 300);
+                
+                // No system message - summary card is the final message
                 
                 // Save to sessionStorage
                 sessionStorage.setItem(`discussion_${sessionId}`, JSON.stringify({
@@ -713,10 +919,12 @@
                 messages.push({ type: 'message', agent: null, message: `${event}: ${JSON.stringify(payload)}`, isSystem: true });
             }
 
-            // Add typing indicator for next agent
-            if (lastAgent && event !== "done" && event !== "error") {
+            // Add typing indicator for next agent (but not after summary - it's the final message)
+            // Also don't add if agents have been stopped
+            if (lastAgent && event !== "done" && event !== "error" && event !== "summary" && !agentsStopped) {
               setTimeout(() => {
                 if (chatMessages.querySelector("#typing-indicator")) return;
+                if (agentsStopped) return; // Double check
                 addTypingIndicator(lastAgent);
               }, 300);
             }
@@ -768,6 +976,44 @@
     jsonModal.addEventListener('click', (e) => {
       if (e.target === jsonModal) {
         jsonModal.classList.remove('active');
+      }
+    });
+
+    // Summary button handlers
+    viewSummaryBtn.addEventListener('click', () => {
+      if (summaryData) {
+        const score = summaryData.score ?? "N/A";
+        const summaryText = summaryData.summary || "";
+        const highlights = summaryData.highlights || [];
+        
+        let content = `
+          <div class="score-badge">Reliability Score: ${score}/100</div>
+          <div class="summary-text">${summaryText}</div>
+        `;
+        
+        if (highlights.length > 0) {
+          content += `
+            <div class="highlights">
+              <h3 style="margin-top: 0; margin-bottom: 16px; color: #1e40af;">Key Highlights:</h3>
+              <ul>
+                ${highlights.map(h => `<li>${h}</li>`).join("")}
+              </ul>
+            </div>
+          `;
+        }
+        
+        summaryContent.innerHTML = content;
+        summaryModal.classList.add('active');
+      }
+    });
+
+    summaryModalClose.addEventListener('click', () => {
+      summaryModal.classList.remove('active');
+    });
+
+    summaryModal.addEventListener('click', (e) => {
+      if (e.target === summaryModal) {
+        summaryModal.classList.remove('active');
       }
     });
   </script>

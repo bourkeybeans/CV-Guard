@@ -280,7 +280,7 @@ def stream():
                 
             yield _sse("reliability", reliability)
             
-            # Add response from other agents to ReliabilityScoringAgent
+            # Add response from other agents to ReliabilityScoringAgent (before summary)
             if transcript is not None:
                 score = reliability.get('score', 0)
                 transcript.append(
@@ -296,6 +296,12 @@ def stream():
                             "message": f"ReliabilityScoringAgent, the {score}/100 score makes sense given what I found on LinkedIn. The candidate's profile validates their work history claims.",
                         }
                     )
+                transcript.append(
+                    {
+                        "agent": "CVClaimsAgent",
+                        "message": "ReliabilityScoringAgent, excellent analysis! SummaryAgent, we're ready for you to compile the final report.",
+                    }
+                )
                 for update in send_new_transcript_entries():
                     yield update
 
@@ -306,41 +312,12 @@ def stream():
                 reliability,
                 transcript,
             )
-            # Send any new transcript entries (SummaryAgent messages)
+            # Send any new transcript entries (SummaryAgent messages before summary card)
             for update in send_new_transcript_entries():
                 yield update
                 
+            # The summary card is the FINAL message - nothing should come after this
             yield _sse("summary", summary)
-            
-            # Add final acknowledgments from other agents
-            if transcript is not None:
-                transcript.append(
-                    {
-                        "agent": "CVClaimsAgent",
-                        "message": "SummaryAgent, excellent summary! You've captured all the key findings from our verification process.",
-                    }
-                )
-                transcript.append(
-                    {
-                        "agent": "RepoVerificationAgent",
-                        "message": "SummaryAgent, great work compiling everything. The report accurately reflects the GitHub verification results.",
-                    }
-                )
-                if linkedin_verification:
-                    transcript.append(
-                        {
-                            "agent": "LinkedInVerificationAgent",
-                            "message": "SummaryAgent, I agree with your final assessment. The summary provides a clear picture of the candidate's reliability.",
-                        }
-                    )
-                transcript.append(
-                    {
-                        "agent": "ReliabilityScoringAgent",
-                        "message": "SummaryAgent, perfect summary! You've synthesized all our findings into a clear, actionable report.",
-                    }
-                )
-                for update in send_new_transcript_entries():
-                    yield update
 
             # Send all transcript entries at the end for verbose mode
             if verbose:

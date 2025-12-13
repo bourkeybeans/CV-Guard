@@ -493,6 +493,7 @@ Inputs:
             summary_text = summary_payload.get('summary', '')
             highlights = summary_payload.get('highlights', [])
             
+            # Add messages before the final summary card
             transcript.append(
                 {
                     "agent": "SummaryAgent",
@@ -508,11 +509,11 @@ Inputs:
                     }
                 )
             
-            # Final closing message
+            # Final message before the summary card (which will be the absolute last thing)
             transcript.append(
                 {
                     "agent": "SummaryAgent",
-                    "message": "That concludes our analysis. All agents have completed their verification tasks. The candidate's CV claims have been thoroughly cross-checked against GitHub repositories and LinkedIn profile data.",
+                    "message": "That concludes our analysis. All agents have completed their verification tasks. The candidate's CV claims have been thoroughly cross-checked against GitHub repositories and LinkedIn profile data. Please review the final summary report below.",
                 }
             )
 
