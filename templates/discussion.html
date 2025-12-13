@@ -611,10 +611,32 @@
       if (normalized.startsWith("CVClaims")) {
         return "CV Claims";
       }
+      // Handle LinkedIn agents
+      if (normalized.includes("LinkedIn")) {
+        if (normalized === "LinkedInScraper") {
+          return "LinkedIn";
+        }
+        if (normalized === "LinkedInVerification") {
+          return "LinkedIn Verification";
+        }
+        // Fallback for any other LinkedIn agent
+        return "LinkedIn";
+      }
       return normalized.replace(/([A-Z])/g, " $1").trim();
     }
 
-    function addMessage(agent, message, isSystem = false, isSummary = false) {
+    // Message queue for delayed display
+    let messageQueue = [];
+    let isProcessingQueue = false;
+    const MESSAGE_DELAY = 800; // Delay between messages in milliseconds
+
+    function processMessageQueue() {
+      if (isProcessingQueue || messageQueue.length === 0) return;
+      
+      isProcessingQueue = true;
+      const { agent, message, isSystem, isSummary } = messageQueue.shift();
+      
+      // Actually add the message
       const messageDiv = document.createElement("div");
       messageDiv.className = `message ${isSystem ? "system" : ""} ${isSummary ? "summary" : ""} ${agent ? `agent-${agent}` : ""}`;
       
@@ -657,6 +679,68 @@
 
       chatMessages.appendChild(messageDiv);
       chatMessages.scrollTop = chatMessages.scrollHeight;
+      
+      // Process next message in queue after delay
+      if (messageQueue.length > 0) {
+        setTimeout(() => {
+          isProcessingQueue = false;
+          processMessageQueue();
+        }, MESSAGE_DELAY);
+      } else {
+        isProcessingQueue = false;
+      }
+    }
+
+    function addMessage(agent, message, isSystem = false, isSummary = false, immediate = false) {
+      if (immediate) {
+        // For immediate messages (like system status), add directly
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `message ${isSystem ? "system" : ""} ${isSummary ? "summary" : ""} ${agent ? `agent-${agent}` : ""}`;
+        
+        const avatar = document.createElement("div");
+        avatar.className = "message-avatar";
+        if (isSystem) {
+          avatar.textContent = "🤖";
+        } else if (agent) {
+          avatar.textContent = getAgentInitials(agent);
+        } else {
+          avatar.textContent = "?";
+        }
+
+        const content = document.createElement("div");
+        content.className = "message-content";
+
+        const header = document.createElement("div");
+        header.className = "message-header";
+
+        const agentName = document.createElement("span");
+        agentName.className = "message-agent";
+        agentName.textContent = isSystem ? "System" : (agent ? getAgentDisplayName(agent) : "Unknown");
+
+        const time = document.createElement("span");
+        time.className = "message-time";
+        time.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        header.appendChild(agentName);
+        header.appendChild(time);
+
+        const bubble = document.createElement("div");
+        bubble.className = "message-bubble";
+        bubble.textContent = message;
+
+        content.appendChild(header);
+        content.appendChild(bubble);
+
+        messageDiv.appendChild(avatar);
+        messageDiv.appendChild(content);
+
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      } else {
+        // Queue the message for delayed display
+        messageQueue.push({ agent, message, isSystem, isSummary });
+        processMessageQueue();
+      }
     }
 
     function addTypingIndicator(agent) {
@@ -704,12 +788,12 @@
         const data = JSON.parse(savedData);
         resultData = data.result;
         
-        // Restore messages
+        // Restore messages (immediate for saved discussions)
         if (data.messages && data.messages.length > 0) {
           chatMessages.innerHTML = '';
           data.messages.forEach(msg => {
             if (msg.type === 'message') {
-              addMessage(msg.agent, msg.message, msg.isSystem, msg.isSummary);
+              addMessage(msg.agent, msg.message, msg.isSystem, msg.isSummary, true);
             } else if (msg.type === 'summary') {
               const summaryDiv = document.createElement("div");
               summaryDiv.className = "message summary agent-SummaryAgent";
@@ -813,7 +897,7 @@
             switch (event) {
               case "status":
                 statusText.innerHTML = '<span class="status-indicator"></span>' + (payload.message || "Processing...");
-                addMessage(null, payload.message || "Starting analysis...", true);
+                addMessage(null, payload.message || "Starting analysis...", true, false, true);
                 messages.push({ type: 'message', agent: null, message: payload.message || "Starting analysis...", isSystem: true });
                 break;
               case "claims":
@@ -860,14 +944,16 @@
                 // STOP ALL AGENTS - no more messages should appear
                 agentsStopped = true;
                 
-                // Add a final message from SummaryAgent
-                addMessage("SummaryAgent", "I've completed the final summary report. Click the button below to view the comprehensive analysis and reliability score.");
-                messages.push({ 
-                  type: 'message', 
-                  agent: "SummaryAgent", 
-                  message: "I've completed the final summary report. Click the button below to view the comprehensive analysis and reliability score." 
-                });
-                lastAgent = "SummaryAgent";
+                // Add a final message from SummaryAgent (after queue processes)
+                setTimeout(() => {
+                  addMessage("SummaryAgent", "I've completed the final summary report. Click the button below to view the comprehensive analysis and reliability score.");
+                  messages.push({ 
+                    type: 'message', 
+                    agent: "SummaryAgent", 
+                    message: "I've completed the final summary report. Click the button below to view the comprehensive analysis and reliability score." 
+                  });
+                  lastAgent = "SummaryAgent";
+                }, messageQueue.length * MESSAGE_DELAY);
                 
                 // Stop any typing indicators - this is the final message
                 removeTypingIndicator();
@@ -876,6 +962,7 @@
                 // Don't process transcript entries if agents have been stopped
                 if (agentsStopped) break;
                 
+                // Add all transcript entries to queue with delays
                 (payload || []).forEach((entry) => {
                   if (entry.agent && entry.message) {
                     addMessage(entry.agent, entry.message);
@@ -890,17 +977,10 @@
                 statusText.innerHTML = '<span class="status-indicator complete"></span>Discussion Complete';
                 stopLoading();
                 
-                // No auto-scroll - let the summary card appear naturally as the last message
-                // Just add a subtle highlight animation if summary card exists
+                // Wait for message queue to finish before showing completion
                 setTimeout(() => {
-                  const summaryCard = chatMessages.querySelector('.message.summary');
-                  if (summaryCard) {
-                    // Add highlight animation but don't scroll
-                    summaryCard.style.animation = 'highlightSummary 1s ease-in-out';
-                  }
-                }, 300);
-                
-                // No system message - summary card is the final message
+                  // No system message - summary button is the final action
+                }, (messageQueue.length + 1) * MESSAGE_DELAY);
                 
                 // Save to sessionStorage
                 sessionStorage.setItem(`discussion_${sessionId}`, JSON.stringify({
