@@ -20,8 +20,9 @@ Run end-to-end from CLI:
 ```
 python agent_workflow.py path/to/cv.pdf <github_username> --linkedin https://linkedin.com/in/example --github-token <optional_token>
 ```
+- Add `--verbose` to return an agent transcript of the reasoning steps.
 
 ## Flask upload endpoint
 - Start with `python app.py` and POST a PDF + LinkedIn/GitHub fields to `/`.
-- The endpoint runs the three-agent pipeline and returns JSON.
+- The endpoint runs the three-agent pipeline and returns JSON (enable the "Verbose agent transcript" checkbox to see the discussion).
 - Uploaded files are saved under `uploads/` (ignored by git).

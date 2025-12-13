@@ -36,6 +36,7 @@ def index():
                 github_username=github_username,
                 linkedin_url=linkedin_url,
                 github_token=request.form.get("github_token") or None,
+                verbose=bool(request.form.get("verbose")),
             )
         except Exception as exc:  # pylint: disable=broad-except
             return jsonify({"error": str(exc)}), 500

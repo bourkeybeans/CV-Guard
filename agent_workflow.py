@@ -21,8 +21,11 @@ class CVClaimsAgent:
     def __init__(self, llm: OpenAI):
         self.llm = llm
 
-    def gather(self, cv_path: str, linkedin_url: Optional[str] = None) -> Dict:
+    def gather(self, cv_path: str, linkedin_url: Optional[str] = None, transcript: Optional[List[Dict]] = None) -> Dict:
         """Extract structured data from the CV and turn it into verifiable claims."""
+        if transcript is not None:
+            transcript.append({"agent": "CVClaimsAgent", "message": f"Parsing CV at {cv_path}."})
+
         structured_cv = parse_cv(cv_path)
 
         prompt = f"""
@@ -63,6 +66,15 @@ Structured CV:
 
         claims_payload = json.loads(content)
         claims = claims_payload.get("claims", [])
+
+        if transcript is not None:
+            transcript.append(
+                {
+                    "agent": "CVClaimsAgent",
+                    "message": f"Generated {len(claims)} verifiable claims; summary: {claims_payload.get('summary', '')[:120]}",
+                }
+            )
+
         return {
             "claims": claims,
             "summary": claims_payload.get("summary", ""),
@@ -74,8 +86,16 @@ class RepoVerificationAgent:
     def __init__(self, llm: OpenAI):
         self.llm = llm
 
-    def verify(self, claims: List[Dict], repos: List[Dict]) -> Dict:
+    def verify(self, claims: List[Dict], repos: List[Dict], transcript: Optional[List[Dict]] = None) -> Dict:
         """Cross-check CV claims against GitHub repositories."""
+        if transcript is not None:
+            transcript.append(
+                {
+                    "agent": "RepoVerificationAgent",
+                    "message": f"Checking {len(claims)} claims against {len(repos)} GitHub repos.",
+                }
+            )
+
         # Prioritize repos with the most stars/watchers to keep context small.
         sorted_repos = sorted(
             repos, key=lambda r: (r.get("stars", 0), r.get("watchers", 0)), reverse=True
@@ -130,14 +150,27 @@ GitHub Repositories (top 15):
         if not content:
             raise ValueError("RepoVerificationAgent returned empty content.")
 
-        return json.loads(content)
+        verification = json.loads(content)
+
+        if transcript is not None:
+            supported = [
+                r for r in verification.get("results", []) if r.get("status") == "supported"
+            ]
+            transcript.append(
+                {
+                    "agent": "RepoVerificationAgent",
+                    "message": f"Verification complete: {len(supported)} supported, {len(verification.get('results', [])) - len(supported)} other outcomes.",
+                }
+            )
+
+        return verification
 
 
 class ReliabilityScoringAgent:
     def __init__(self, llm: OpenAI):
         self.llm = llm
 
-    def score(self, claims: List[Dict], verification: Dict) -> Dict:
+    def score(self, claims: List[Dict], verification: Dict, transcript: Optional[List[Dict]] = None) -> Dict:
         """Score the candidate based on verification outcomes."""
         prompt = f"""
 You are ReliabilityScorer. Given CV claims and their verification results, provide a 0-100 reliability score.
@@ -170,19 +203,37 @@ Verification Results:
         if not content:
             raise ValueError("ReliabilityScoringAgent returned empty content.")
 
-        return json.loads(content)
+        score_payload = json.loads(content)
+
+        if transcript is not None:
+            transcript.append(
+                {
+                    "agent": "ReliabilityScoringAgent",
+                    "message": f"Assigned score {score_payload.get('score')} with rationale: {score_payload.get('rationale', '')[:120]}",
+                }
+            )
+
+        return score_payload
 
 
-def run_claimcheck(cv_path: str, github_username: str, linkedin_url: Optional[str] = None, github_token: Optional[str] = None) -> Dict:
+def run_claimcheck(
+    cv_path: str,
+    github_username: str,
+    linkedin_url: Optional[str] = None,
+    github_token: Optional[str] = None,
+    verbose: bool = False,
+) -> Dict:
     """Orchestrate the three-agent pipeline end-to-end."""
+    transcript: Optional[List[Dict]] = [] if verbose else None
+
     claims_agent = CVClaimsAgent(client)
     verifier = RepoVerificationAgent(client)
     scorer = ReliabilityScoringAgent(client)
 
-    claims_payload = claims_agent.gather(cv_path=cv_path, linkedin_url=linkedin_url)
+    claims_payload = claims_agent.gather(cv_path=cv_path, linkedin_url=linkedin_url, transcript=transcript)
     repos = get_github_repositories(github_username, github_token)
-    verification = verifier.verify(claims_payload["claims"], repos)
-    reliability = scorer.score(claims_payload["claims"], verification)
+    verification = verifier.verify(claims_payload["claims"], repos, transcript=transcript)
+    reliability = scorer.score(claims_payload["claims"], verification, transcript=transcript)
 
     return {
         "claims": claims_payload["claims"],
@@ -191,6 +242,7 @@ def run_claimcheck(cv_path: str, github_username: str, linkedin_url: Optional[st
         "repos_checked": len(repos),
         "verification": verification,
         "reliability": reliability,
+        "transcript": transcript or [],
     }
 
 
@@ -202,6 +254,7 @@ if __name__ == "__main__":
     parser.add_argument("github", help="GitHub username to verify claims against")
     parser.add_argument("--linkedin", help="LinkedIn profile URL", default=None)
     parser.add_argument("--github-token", help="GitHub token to avoid rate limits", default=None)
+    parser.add_argument("--verbose", help="Return agent transcript", action="store_true")
     args = parser.parse_args()
 
     result = run_claimcheck(
@@ -209,6 +262,7 @@ if __name__ == "__main__":
         github_username=args.github,
         linkedin_url=args.linkedin,
         github_token=args.github_token,
+        verbose=bool(args.verbose),
     )
 
     print(json.dumps(result, indent=2))

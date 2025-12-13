@@ -87,7 +87,7 @@
       Verify the reliability of CV claims by cross-referencing LinkedIn and GitHub.
     </p>
 
-    <form method="POST" enctype="multipart/form-data">
+    <form id="claimcheck-form" method="POST" enctype="multipart/form-data">
 
       <label>CV (PDF)</label>
       <input type="file" name="cv" accept=".pdf" required>
@@ -101,14 +101,57 @@
       <label>GitHub Token (optional)</label>
       <input type="text" name="github_token" placeholder="ghp_xxx for higher rate limits">
 
+      <label style="display:flex; align-items:center; gap:8px; font-weight:500;">
+        <input type="checkbox" name="verbose" value="1" style="width:auto; margin:0;">
+        Verbose agent transcript
+      </label>
+
       <button type="submit">Run ClaimCheck</button>
 
     </form>
+
+    <div id="status" class="footer" style="display:none;"></div>
+    <pre id="result" style="display:none; margin-top:16px; background:#f5f5f5; padding:12px; border-radius:6px; font-size:12px; overflow:auto;"></pre>
 
     <div class="footer">
       Multi-agent candidate verification · Demo prototype
     </div>
   </div>
 
+  <script>
+    const form = document.getElementById("claimcheck-form");
+    const statusEl = document.getElementById("status");
+    const resultEl = document.getElementById("result");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      statusEl.style.display = "block";
+      statusEl.textContent = "Running agents...";
+      resultEl.style.display = "none";
+      resultEl.textContent = "";
+
+      const formData = new FormData(form);
+
+      try {
+        const res = await fetch("/", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          statusEl.textContent = data.error || "Something went wrong.";
+          return;
+        }
+
+        statusEl.textContent = "Done.";
+        resultEl.style.display = "block";
+        resultEl.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        statusEl.textContent = err.message || "Request failed.";
+      }
+    });
+  </script>
 </body>
 </html>
