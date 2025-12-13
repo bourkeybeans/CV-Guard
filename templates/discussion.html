@@ -611,13 +611,13 @@
       if (normalized.startsWith("CVClaims")) {
         return "CV Claims";
       }
-      // Handle LinkedIn agents
+      // Handle LinkedIn agents - check for verification first (more specific)
       if (normalized.includes("LinkedIn")) {
-        if (normalized === "LinkedInScraper") {
-          return "LinkedIn";
-        }
-        if (normalized === "LinkedInVerification") {
+        if (normalized.includes("Verification") || normalized === "LinkedInVerification") {
           return "LinkedIn Verification";
+        }
+        if (normalized === "LinkedInScraper" || normalized.includes("Scraper")) {
+          return "LinkedIn";
         }
         // Fallback for any other LinkedIn agent
         return "LinkedIn";
