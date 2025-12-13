@@ -66,6 +66,19 @@ python app.py
 6) SummaryAgent produces a user-facing report with highlights and the score.  
 7) SSE events stream these steps to the UI; a transcript can be returned with `--verbose`.
 
+### Agents and tools
+- **CVClaimsAgent**: Uses OpenAI to turn structured CV JSON (from `cv_fetch.py`/pdfplumber) into atomic, verifiable claims and a short summary. No external calls beyond the LLM + parsed CV data.
+- **RepoVerificationAgent**: Fetches GitHub repo metadata via `gitTool.get_github_repositories` (GitHub REST API; optional PAT), then prompts OpenAI to compare claims against repo fields (name/desc/language/topics/stars/etc.). No repo checkout; metadata only.
+- **LinkedInVerificationAgent**: If a LinkdAPI key is present, fetches profile data via `src/api/client.py` (`LinkedInAPIClient` + `linkdapi.AsyncLinkdAPI` with retries), then prompts OpenAI to compare claims against positions/education/skills/headline. Skips if no key/URL.
+- **ReliabilityScoringAgent**: Prompts OpenAI to fuse GitHub + LinkedIn verification results into a single 0–100 reliability score with rationale and weighted breakdown. Consumes previous outputs; no external API calls.
+- **SummaryAgent**: Prompts OpenAI to produce a user-facing report (<=120 words, highlights, score) using claims, verification outputs, the reliability score, and recent transcript messages.
+
+Supporting tools:
+- pdfplumber for PDF text extraction (`cv_fetch.py`).
+- GitHub REST API via `requests` in `gitTool.py` (PAT optional).
+- LinkdAPI via `linkdapi.AsyncLinkdAPI` and `LinkedInAPIClient` (`src/api/client.py`), needs `LINKD_API_KEY`/`LINKDAPI_API_KEY` or `config.ini`.
+- OpenAI via `openai.OpenAI` for all agent prompts.
+
 ## Notes
 - Keep keys out of commits; `.env` is gitignored.
 - LinkdAPI key can come from `.env` (`LINKD_API_KEY`/`LINKDAPI_API_KEY`) or `config.ini`.
