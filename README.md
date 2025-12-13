@@ -1,5 +1,7 @@
 # CV Guard (EpimindsHack)
 
+- An innovative solution to integrity within the Hiring Process
+
 Multi-agent CV verification: parse a CV, generate verifiable claims, cross-check against GitHub and LinkedIn, score reliability, and present a live discussion + summary.
 
 ## What’s inside
