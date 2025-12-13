@@ -15,7 +15,7 @@ Multi-agent CV verification: parse a CV, generate verifiable claims, cross-check
 - **LinkedInVerificationAgent**: If a LinkdAPI key is present, fetches profile data via `src/api/client.py` (`LinkedInAPIClient` + `linkdapi.AsyncLinkdAPI` with retries), then prompts OpenAI to compare claims against positions/education/skills/headline. Skips if no key/URL.
 - **ReliabilityScoringAgent**: Prompts OpenAI to fuse GitHub + LinkedIn verification results into a single 0–100 reliability score with rationale and weighted breakdown. Consumes previous outputs; no external API calls.
 - **SummaryAgent**: Prompts OpenAI to produce a user-facing report (<=120 words, highlights, score) using claims, verification outputs, the reliability score, and recent transcript messages.
-- 
+
 ## Setup
 1) Python 3.12+ recommended.  
 2) Create `.env` with at least:
