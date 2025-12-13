@@ -112,6 +112,7 @@
 
     <div id="status" class="footer" style="display:none;"></div>
     <pre id="transcript" style="display:none; margin-top:12px; background:#0f172a; color:#e2e8f0; padding:12px; border-radius:6px; font-size:12px; overflow:auto; max-height:200px;"></pre>
+    <div id="summary" style="display:none; margin-top:12px; background:#ecfeff; border:1px solid #bae6fd; padding:12px; border-radius:8px; font-size:13px;"></div>
     <pre id="result" style="display:none; margin-top:16px; background:#f5f5f5; padding:12px; border-radius:6px; font-size:12px; overflow:auto;"></pre>
 
     <div class="footer">
@@ -123,6 +124,7 @@
     const form = document.getElementById("claimcheck-form");
     const statusEl = document.getElementById("status");
     const transcriptEl = document.getElementById("transcript");
+    const summaryEl = document.getElementById("summary");
     const resultEl = document.getElementById("result");
 
     function appendTranscript(line) {
@@ -137,6 +139,8 @@
       statusEl.textContent = "Running agents (streaming)...";
       transcriptEl.style.display = "none";
       transcriptEl.textContent = "";
+      summaryEl.style.display = "none";
+      summaryEl.textContent = "";
       resultEl.style.display = "none";
       resultEl.textContent = "";
 
@@ -198,6 +202,10 @@
                 break;
               case "reliability":
                 appendTranscript(`Reliability scored: ${payload.score ?? ""}`);
+                break;
+              case "summary":
+                summaryEl.style.display = "block";
+                summaryEl.innerHTML = `<strong>Report (Score ${payload.score ?? ""}/100)</strong><br>${payload.summary || ""}<br><ul>${(payload.highlights || []).map(h => `<li>${h}</li>`).join("")}</ul>`;
                 break;
               case "transcript":
                 (payload || []).forEach((entry) => {

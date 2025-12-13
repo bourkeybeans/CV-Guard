@@ -9,6 +9,7 @@ from agent_workflow import (
     LinkedInVerificationAgent,
     ReliabilityScoringAgent,
     RepoVerificationAgent,
+    SummaryAgent,
     LINKEDIN_API_KEY,
     client as agent_client,
     extract_linkedin_username,
@@ -89,6 +90,7 @@ def stream():
         verifier = RepoVerificationAgent(agent_client)
         linkedin_verifier = LinkedInVerificationAgent(agent_client)
         scorer = ReliabilityScoringAgent(agent_client)
+        summarizer = SummaryAgent(agent_client)
 
         try:
             yield _sse("status", {"message": "Starting ClaimCheck pipeline..."})
@@ -161,6 +163,15 @@ def stream():
             )
             yield _sse("reliability", reliability)
 
+            summary = summarizer.summarize(
+                claims_payload["claims"],
+                verification,
+                linkedin_verification,
+                reliability,
+                transcript or [],
+            )
+            yield _sse("summary", summary)
+
             if verbose:
                 yield _sse("transcript", transcript)
 
@@ -176,6 +187,7 @@ def stream():
                     "linkedin_profile": linkedin_profile,
                     "linkedin_verification": linkedin_verification,
                     "reliability": reliability,
+                    "summary": summary,
                     "transcript": transcript or [],
                 },
             )

@@ -368,6 +368,52 @@ LinkedIn Verification Results:
         return score_payload
 
 
+class SummaryAgent:
+    def __init__(self, llm: OpenAI):
+        self.llm = llm
+
+    def summarize(
+        self,
+        claims: List[Dict],
+        repo_verification: Dict,
+        linkedin_verification: Optional[Dict],
+        reliability: Dict,
+        transcript: List[Dict],
+    ) -> Dict:
+        """Produce a concise user-facing summary with overall reliability score."""
+        prompt = f"""
+You are SummaryWriter. Produce a clear, user-facing report from the agent outputs.
+
+Return JSON with:
+- summary: short paragraph (<=120 words) explaining findings and key evidence.
+- score: integer 0-100 (from reliability.score).
+- highlights: list of 3-6 bullet strings focusing on key claims/evidence.
+
+Inputs:
+- Claims: {json.dumps(claims)}
+- GitHub verification: {json.dumps(repo_verification)}
+- LinkedIn verification: {json.dumps(linkedin_verification or {})}
+- Reliability: {json.dumps(reliability)}
+- Transcript: {json.dumps(transcript[-20:] if transcript else [])}
+"""
+
+        res = self.llm.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+
+        content = res.choices[0].message.content
+        if isinstance(content, list):
+            content = "".join(getattr(part, "text", str(part)) for part in content)
+
+        if not content:
+            raise ValueError("SummaryAgent returned empty content.")
+
+        return json.loads(content)
+
+
 def run_claimcheck(
     cv_path: str,
     github_username: str,
@@ -383,6 +429,7 @@ def run_claimcheck(
     verifier = RepoVerificationAgent(client)
     linkedin_verifier = LinkedInVerificationAgent(client)
     scorer = ReliabilityScoringAgent(client)
+    summarizer = SummaryAgent(client)
 
     claims_payload = claims_agent.gather(cv_path=cv_path, linkedin_url=linkedin_url, transcript=transcript)
 
@@ -425,6 +472,14 @@ def run_claimcheck(
         transcript=transcript,
     )
 
+    summary = summarizer.summarize(
+        claims_payload["claims"],
+        verification,
+        linkedin_verification,
+        reliability,
+        transcript or [],
+    )
+
     return {
         "claims": claims_payload["claims"],
         "claims_summary": claims_payload["summary"],
@@ -435,6 +490,7 @@ def run_claimcheck(
         "linkedin_profile": linkedin_profile,
         "linkedin_verification": linkedin_verification,
         "reliability": reliability,
+        "summary": summary,
         "transcript": transcript or [],
     }
 

@@ -16,6 +16,7 @@ Simple tools to parse CV PDFs with OpenAI and a Flask endpoint to accept uploads
 - RepoVerificationAgent: cross-checks claims against GitHub repositories.
 - LinkedInVerificationAgent: cross-checks claims against LinkedIn profile data (requires `LINKD_API_KEY`/`LINKDAPI_API_KEY` or `--linkedin-api-key`).
 - ReliabilityScoringAgent: assigns a 0-100 reliability score with rationale.
+- SummaryAgent: produces a user-facing report with highlights and the final score.
 
 Run end-to-end from CLI:
 ```
