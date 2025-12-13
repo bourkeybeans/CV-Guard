@@ -406,7 +406,12 @@
 
     function getAgentDisplayName(agentName) {
       if (!agentName) return "Unknown";
-      return agentName.replace(/Agent$/, "").replace(/([A-Z])/g, " $1").trim();
+      // Handle common acronyms first
+      const normalized = agentName.replace(/Agent$/, "");
+      if (normalized.startsWith("CVClaims")) {
+        return "CV Claims";
+      }
+      return normalized.replace(/([A-Z])/g, " $1").trim();
     }
 
     function addMessage(agent, message, isSystem = false, isSummary = false) {
@@ -686,7 +691,7 @@
               case "done":
                 resultData = payload;
                 viewJsonBtn.style.display = 'block';
-                statusText.innerHTML = '<span class="status-indicator complete"></span>Discussion Complete';
+                statusText.textContent = 'Discussion Complete';
                 stopLoading();
                 addMessage(null, "All agents have completed their analysis. Review the summary above.", true);
                 messages.push({ type: 'message', agent: null, message: "All agents have completed their analysis. Review the summary above.", isSystem: true });
@@ -768,4 +773,3 @@
   </script>
 </body>
 </html>
-
