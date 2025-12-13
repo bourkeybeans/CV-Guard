@@ -42,20 +42,8 @@ python agent_workflow.py path/to/cv.pdf <github_username> \
   --verbose   # include agent transcript
 ```
 
-Quick CV parse only:
-```
-python cv_fetch.py path/to/cv.pdf
-```
 
-GitHub repo fetch:
-```
-python gitTool.py <github_username> --token <optional_pat> --stdout --pretty
-```
 
-LinkedIn agent (optional, CLI demo):
-```
-python agent_main.py
-```
 
 ## Web app
 Start the Flask server:
