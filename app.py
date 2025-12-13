@@ -1,6 +1,9 @@
-from flask import Flask, render_template, request
-from werkzeug.utils import secure_filename
 import os
+
+from flask import Flask, jsonify, render_template, request
+from werkzeug.utils import secure_filename
+
+from agent_workflow import run_claimcheck
 
 app = Flask(__name__)
 
@@ -23,17 +26,21 @@ def index():
 
         github_username = request.form.get("github")
 
-        # For now just print - later send to agents
-        print("CV PATH:", cv_path)
-        print("LinkedIn:", linkedin_url)
-        print("GitHub:", github_username)
+        if not cv_path:
+            return jsonify({"error": "A PDF CV is required."}), 400
 
-        return {
-            "status": "received",
-            "cv_saved": bool(cv_path),
-            "linkedin": linkedin_url,
-            "github": github_username
-        }
+        try:
+            # Run the three-agent pipeline end-to-end.
+            result = run_claimcheck(
+                cv_path=cv_path,
+                github_username=github_username,
+                linkedin_url=linkedin_url,
+                github_token=request.form.get("github_token") or None,
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            return jsonify({"error": str(exc)}), 500
+
+        return jsonify(result)
 
     return render_template("index.html")
 
