@@ -6,9 +6,13 @@ from werkzeug.utils import secure_filename
 
 from agent_workflow import (
     CVClaimsAgent,
+    LinkedInVerificationAgent,
     ReliabilityScoringAgent,
     RepoVerificationAgent,
+    LINKEDIN_API_KEY as DEFAULT_LINKEDIN_API_KEY,
     client as agent_client,
+    extract_linkedin_username,
+    fetch_linkedin_profile,
     run_claimcheck,
 )
 from gitTool import get_github_repositories
@@ -73,6 +77,9 @@ def stream():
     github_username = request.form.get("github")
     github_token = request.form.get("github_token") or None
     verbose = bool(request.form.get("verbose"))
+    linkedin_api_key = (
+        request.form.get("linkedin_api_key") or DEFAULT_LINKEDIN_API_KEY
+    )
 
     if not cv_path:
         return jsonify({"error": "A PDF CV is required."}), 400
@@ -82,6 +89,7 @@ def stream():
         transcript = [] if verbose else None
         claims_agent = CVClaimsAgent(agent_client)
         verifier = RepoVerificationAgent(agent_client)
+        linkedin_verifier = LinkedInVerificationAgent(agent_client)
         scorer = ReliabilityScoringAgent(agent_client)
 
         try:
@@ -100,6 +108,36 @@ def stream():
                 },
             )
 
+            linkedin_profile = None
+            linkedin_verification = None
+            linkedin_username = extract_linkedin_username(linkedin_url) if linkedin_url else None
+
+            if linkedin_username and linkedin_api_key:
+                yield _sse("status", {"message": f"Fetching LinkedIn profile for {linkedin_username}..."})
+                status, profile_or_error = fetch_linkedin_profile(
+                    linkedin_username, linkedin_api_key, transcript=transcript
+                )
+                yield _sse(
+                    "linkedin_profile",
+                    {"status": status, "username": linkedin_username},
+                )
+                if status == "success" and isinstance(profile_or_error, dict):
+                    linkedin_profile = profile_or_error
+                elif transcript is not None:
+                    transcript.append(
+                        {
+                            "agent": "LinkedInScraper",
+                            "message": f"LinkedIn fetch failed ({status}): {profile_or_error}",
+                        }
+                    )
+            elif linkedin_username and not linkedin_api_key and transcript is not None:
+                transcript.append(
+                    {
+                        "agent": "LinkedInScraper",
+                        "message": "Skipping LinkedIn fetch (missing LINKD_API_KEY).",
+                    }
+                )
+
             yield _sse("status", {"message": "Fetching GitHub repositories..."})
             repos = get_github_repositories(github_username, github_token)
             yield _sse("repos", {"count": len(repos)})
@@ -109,8 +147,19 @@ def stream():
             )
             yield _sse("verification", verification)
 
+            if linkedin_profile:
+                linkedin_verification = linkedin_verifier.verify(
+                    claims_payload["claims"],
+                    linkedin_profile,
+                    transcript=transcript,
+                )
+                yield _sse("linkedin_verification", linkedin_verification)
+
             reliability = scorer.score(
-                claims_payload["claims"], verification, transcript=transcript
+                claims_payload["claims"],
+                verification,
+                linkedin_verification=linkedin_verification,
+                transcript=transcript,
             )
             yield _sse("reliability", reliability)
 
@@ -125,6 +174,9 @@ def stream():
                     "structured_cv": claims_payload["structured_cv"],
                     "repos_checked": len(repos),
                     "verification": verification,
+                    "linkedin_username": linkedin_username,
+                    "linkedin_profile": linkedin_profile,
+                    "linkedin_verification": linkedin_verification,
                     "reliability": reliability,
                     "transcript": transcript or [],
                 },
