@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ClaimCheck</title>
+
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial;
+      background: #f6f7f9;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 520px;
+      margin: 80px auto;
+      background: white;
+      padding: 32px;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 26px;
+    }
+
+    p.subtitle {
+      color: #555;
+      margin-bottom: 28px;
+    }
+
+    label {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    input[type="file"],
+    input[type="url"],
+    input[type="text"] {
+      width: 100%;
+      margin-top: 6px;
+      margin-bottom: 18px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 2px rgba(79,70,229,0.15);
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #4f46e5;
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #4338ca;
+    }
+
+    .footer {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #777;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <h1>ClaimCheck</h1>
+    <p class="subtitle">
+      Verify the reliability of CV claims by cross-referencing LinkedIn and GitHub.
+    </p>
+
+    <form method="POST" enctype="multipart/form-data">
+
+      <label>CV (PDF)</label>
+      <input type="file" name="cv" accept=".pdf" required>
+
+      <label>LinkedIn Profile</label>
+      <input type="url" name="linkedin" placeholder="https://linkedin.com/in/username" required>
+
+      <label>GitHub Username</label>
+      <input type="text" name="github" placeholder="octocat" required>
+
+      <button type="submit">Run ClaimCheck</button>
+
+    </form>
+
+    <div class="footer">
+      Multi-agent candidate verification · Demo prototype
+    </div>
+  </div>
+
+</body>
+</html>
