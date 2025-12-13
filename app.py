@@ -9,7 +9,7 @@ from agent_workflow import (
     LinkedInVerificationAgent,
     ReliabilityScoringAgent,
     RepoVerificationAgent,
-    LINKEDIN_API_KEY as DEFAULT_LINKEDIN_API_KEY,
+    LINKEDIN_API_KEY,
     client as agent_client,
     extract_linkedin_username,
     fetch_linkedin_profile,
@@ -77,9 +77,7 @@ def stream():
     github_username = request.form.get("github")
     github_token = request.form.get("github_token") or None
     verbose = bool(request.form.get("verbose"))
-    linkedin_api_key = (
-        request.form.get("linkedin_api_key") or DEFAULT_LINKEDIN_API_KEY
-    )
+    linkedin_api_key = LINKEDIN_API_KEY
 
     if not cv_path:
         return jsonify({"error": "A PDF CV is required."}), 400

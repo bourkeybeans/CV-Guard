@@ -11,6 +11,7 @@ from linkdapi import AsyncLinkdAPI
 from cv_fetch import parse_cv
 from gitTool import get_github_repositories
 from src.api.client import LinkedInAPIClient, ScrapeStatus
+from src.utils.config import Config
 
 load_dotenv()
 
@@ -19,7 +20,16 @@ if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY is missing. Set it in .env or the environment.")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
-LINKEDIN_API_KEY = os.getenv("LINKD_API_KEY") or os.getenv("LINKDAPI_API_KEY")
+_config_linkedin_key = None
+try:
+    _cfg = Config()
+    _config_linkedin_key = _cfg.api_key
+except SystemExit:
+    _config_linkedin_key = None
+except Exception:
+    _config_linkedin_key = None
+
+LINKEDIN_API_KEY = os.getenv("LINKD_API_KEY") or os.getenv("LINKDAPI_API_KEY") or _config_linkedin_key
 
 
 def extract_linkedin_username(link: Optional[str]) -> Optional[str]:

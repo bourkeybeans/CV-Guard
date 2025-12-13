@@ -26,5 +26,5 @@ python agent_workflow.py path/to/cv.pdf <github_username> --linkedin https://lin
 ## Flask upload endpoint
 - Start with `python app.py` and POST a PDF + LinkedIn/GitHub fields.
 - The form now streams live events from `/stream` so you can watch the agent discussion in real time (check "Verbose agent transcript" for full dialogue).
-- Optional GitHub token and LinkdAPI key fields help avoid rate limits for GitHub/LinkedIn.
+- Optional GitHub token field helps avoid rate limits; LinkedIn API key is read from `config.ini` or env (`LINKD_API_KEY`/`LINKDAPI_API_KEY`).
 - Uploaded files are saved under `uploads/` (ignored by git).
