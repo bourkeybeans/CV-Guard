@@ -23,6 +23,6 @@ python agent_workflow.py path/to/cv.pdf <github_username> --linkedin https://lin
 - Add `--verbose` to return an agent transcript of the reasoning steps.
 
 ## Flask upload endpoint
-- Start with `python app.py` and POST a PDF + LinkedIn/GitHub fields to `/`.
-- The endpoint runs the three-agent pipeline and returns JSON (enable the "Verbose agent transcript" checkbox to see the discussion).
+- Start with `python app.py` and POST a PDF + LinkedIn/GitHub fields.
+- The form now streams live events from `/stream` so you can watch the agent discussion in real time (check "Verbose agent transcript" for full dialogue).
 - Uploaded files are saved under `uploads/` (ignored by git).

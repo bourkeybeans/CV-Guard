@@ -111,6 +111,7 @@
     </form>
 
     <div id="status" class="footer" style="display:none;"></div>
+    <pre id="transcript" style="display:none; margin-top:12px; background:#0f172a; color:#e2e8f0; padding:12px; border-radius:6px; font-size:12px; overflow:auto; max-height:200px;"></pre>
     <pre id="result" style="display:none; margin-top:16px; background:#f5f5f5; padding:12px; border-radius:6px; font-size:12px; overflow:auto;"></pre>
 
     <div class="footer">
@@ -121,33 +122,109 @@
   <script>
     const form = document.getElementById("claimcheck-form");
     const statusEl = document.getElementById("status");
+    const transcriptEl = document.getElementById("transcript");
     const resultEl = document.getElementById("result");
+
+    function appendTranscript(line) {
+      transcriptEl.style.display = "block";
+      transcriptEl.textContent += line + "\n";
+      transcriptEl.scrollTop = transcriptEl.scrollHeight;
+    }
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       statusEl.style.display = "block";
-      statusEl.textContent = "Running agents...";
+      statusEl.textContent = "Running agents (streaming)...";
+      transcriptEl.style.display = "none";
+      transcriptEl.textContent = "";
       resultEl.style.display = "none";
       resultEl.textContent = "";
 
       const formData = new FormData(form);
 
       try {
-        const res = await fetch("/", {
+        const res = await fetch("/stream", {
           method: "POST",
           body: formData,
         });
 
-        const data = await res.json();
-
-        if (!res.ok) {
-          statusEl.textContent = data.error || "Something went wrong.";
+        if (!res.ok || !res.body) {
+          statusEl.textContent = "Something went wrong.";
           return;
         }
 
-        statusEl.textContent = "Done.";
-        resultEl.style.display = "block";
-        resultEl.textContent = JSON.stringify(data, null, 2);
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        const processChunk = (chunk) => {
+          buffer += chunk;
+          const parts = buffer.split("\n\n");
+          buffer = parts.pop() || "";
+          for (const part of parts) {
+            const lines = part.trim().split("\n");
+            let event = "message";
+            let dataLine = "";
+            for (const line of lines) {
+              if (line.startsWith("event:")) {
+                event = line.slice(6).trim();
+              } else if (line.startsWith("data:")) {
+                dataLine += line.slice(5).trim();
+              }
+            }
+            if (!dataLine) continue;
+            let payload = {};
+            try { payload = JSON.parse(dataLine); } catch (err) { payload = { raw: dataLine }; }
+
+            switch (event) {
+              case "status":
+                statusEl.textContent = payload.message || "";
+                appendTranscript(`[status] ${payload.message || ""}`);
+                break;
+              case "claims":
+                appendTranscript(`Claims generated: ${payload.count} | ${payload.summary || ""}`);
+                break;
+              case "repos":
+                appendTranscript(`GitHub repos fetched: ${payload.count}`);
+                break;
+              case "verification":
+                appendTranscript(`Verification completed.`);
+                break;
+              case "reliability":
+                appendTranscript(`Reliability scored: ${payload.score ?? ""}`);
+                break;
+              case "transcript":
+                (payload || []).forEach((entry) => {
+                  if (entry.agent && entry.message) appendTranscript(`${entry.agent}: ${entry.message}`);
+                });
+                break;
+              case "done":
+                statusEl.textContent = "Done.";
+                resultEl.style.display = "block";
+                resultEl.textContent = JSON.stringify(payload, null, 2);
+                break;
+              case "error":
+                statusEl.textContent = payload.error || "Error";
+                appendTranscript(`Error: ${payload.error || ""}`);
+                break;
+              default:
+                appendTranscript(`${event}: ${dataLine}`);
+            }
+          }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            if (buffer.trim()) {
+              processChunk("");
+            }
+            break;
+          }
+          const chunk = decoder.decode(value, { stream: true });
+          processChunk(chunk);
+        }
+
       } catch (err) {
         statusEl.textContent = err.message || "Request failed.";
       }
