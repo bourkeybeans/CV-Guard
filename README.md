@@ -4,6 +4,9 @@
 
 Multi-agent CV verification: parse a CV, generate verifiable claims, cross-check against GitHub and LinkedIn, score reliability, and present a live discussion + summary.
 
+## Demo
+[Video Demo](https://www.youtube.com/watch?v=tHD_222V4nU)
+
 ## What’s inside
 - `agent_workflow.py`: pipeline of OpenAI agents (CVClaims, RepoVerification, LinkedInVerification, ReliabilityScoring, Summary).
 - `cv_fetch.py`: CLI CV parser that extracts structured JSON from a PDF.
